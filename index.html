@@ -1,114 +1,149 @@
-<!DOCTYPE HTML>
-<html>
+<!DOCTYPE html>
+<html lang="ja">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <title>原神スケジュール</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>原神スケジュール しらせ</title>
   <link rel="manifest" href="manifest.json?v=2">
   <link rel="icon" href="icon_v2.png" type="image/png">
   <link rel="apple-touch-icon" href="icon_v2.png">
   <style>
-    /* 【デザイン】目に優しいくすみカラー設定 */
+    :root {
+      --bg-color: #f4f1ea;      /* 目に優しい和紙のようなベージュ */
+      --card-bg: #ffffff;
+      --text-main: #5d6275;     /* 柔らかい紺色 */
+      --accent-blue: #a3b8c8;   /* くすみブルー */
+      --accent-active: #8fb196; /* くすみグリーン（進行中） */
+      --accent-warning: #d9a6a6;/* くすみレッド（終了間際） */
+    }
+
     body {
-      background-color: #f4f1ea;
-      color: #5d5c58;
-      font-family: sans-serif;
-      padding: 20px;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-main);
       margin: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
 
     h1 {
-      font-size: 1.4rem;
-      margin-bottom: 15px;
-      border-left: 5px solid #a3b8c8;
-      padding-left: 15px;
-      color: #4a4945;
+      font-size: 1.5rem;
+      margin-bottom: 20px;
+      color: var(--accent-blue);
+      letter-spacing: 2px;
     }
 
-    /* 通知ボタン：許可済みならJavaScriptで非表示にします */
-    #notify-btn {
-      display: block;
+    #app {
       width: 100%;
-      padding: 12px;
-      margin-bottom: 20px;
-      border: 1px solid #a3b8c8;
-      border-radius: 12px;
-      background-color: #fff;
-      color: #5d5c58;
-      font-weight: bold;
-      cursor: pointer;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+      max-width: 500px;
+    }
+
+    /* カードをタップ可能にするための設定 */
+    .event-card-link {
+      text-decoration: none;
+      color: inherit;
+      display: block;
+      margin-bottom: 15px;
+      -webkit-tap-highlight-color: transparent;
     }
 
     .event-card {
-      position: relative;
-      background-color: #ffffff;
-      border-radius: 18px;
-      margin-bottom: 20px;
-      padding: 25px 20px;
-      min-height: 110px;
+      background-size: cover;
+      background-position: center;
+      border-radius: 16px;
       overflow: hidden;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.06);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      position: relative;
+      height: 120px;
+      transition: transform 0.2s;
+    }
+
+    .event-card-link:active .event-card {
+      transform: scale(0.97); /* タップした時の凹み演出 */
+    }
+
+    .event-info {
+      background: rgba(255, 255, 255, 0.85); /* 目に優しい半透明白 */
+      backdrop-filter: blur(4px);
+      position: absolute;
+      bottom: 0;
+      width: 100%;
+      padding: 10px 15px;
+      box-sizing: border-box;
       display: flex;
       flex-direction: column;
-      justify-content: center;
-      background-repeat: no-repeat;
-      background-position: right center;
-      background-size: contain; 
     }
 
-    .event-card::before {
-      content: '';
-      position: absolute;
-      top: 0; left: 0; width: 100%; height: 100%;
-      background: linear-gradient(to right, rgba(255,255,255,1) 0%, rgba(255,255,255,1) 35%, rgba(255,255,255,0.7) 65%, rgba(255,255,255,0) 98%);
-      z-index: 1;
+    .event-title {
+      font-weight: bold;
+      font-size: 1.1rem;
+      margin-bottom: 4px;
     }
 
-    .event-info { position: relative; z-index: 2; max-width: 65%; }
-    .event-title { font-weight: bold; font-size: 1.1rem; margin-bottom: 8px; color: #333; display: block; }
-    .event-time { font-size: 0.85rem; color: #777; font-variant-numeric: tabular-nums; }
+    .event-time {
+      font-size: 0.85rem;
+      opacity: 0.8;
+    }
 
     .status-badge {
-      display: inline-block;
-      padding: 2px 10px;
-      border-radius: 20px;
       font-size: 0.7rem;
-      margin-bottom: 8px;
-      font-weight: bold;
-      color: #fff;
+      padding: 2px 8px;
+      border-radius: 20px;
+      color: white;
+      width: fit-content;
+      margin-bottom: 5px;
     }
-    .status-upcoming { background-color: #b2c9ab; }
-    .status-active { background-color: #a3b8c8; }
-    .status-ending { background-color: #d9b5b2; }
-    
-    .loading { text-align: center; padding: 50px; color: #888; font-size: 0.9rem; }
+
+    .status-active { background-color: var(--accent-active); }
+    .status-upcoming { background-color: var(--accent-blue); }
+    .status-ending { background-color: var(--accent-warning); }
+
+    #notify-btn {
+      background: var(--accent-blue);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 30px;
+      font-size: 1rem;
+      cursor: pointer;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 10px rgba(163, 184, 200, 0.4);
+    }
+
+    .loading {
+      text-align: center;
+      margin-top: 50px;
+      color: var(--accent-blue);
+    }
   </style>
 </head>
 <body>
 
-  <h1>原神スケジュール</h1>
-  
-  <button id="notify-btn">🔔 通知をオンにする</button>
+  <h1>しらせ - 原神予定録</h1>
+
+  <button id="notify-btn">通知を有効にする</button>
 
   <div id="app">
-    <div class="loading">スプレッドシートを読み込み中...</div>
+    <div class="loading">読み込み中...</div>
   </div>
 
-<script>
-// --- 追加：Service Workerを登録するおまじない ---
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js').then(() => {
-    console.log('Service Worker 登録完了');
-  });
-}
-// ----------------------------------------------
-  
+  <script>
+    // --- 基本設定 ---
     const SHEET_ID = '1KXIFT2144f_9lihSxHEO_hzNiMEmgKyrNaM24WwBMyQ'; 
     const SHEET_NAME = 'イベント一覧'; 
 
     let lastNotifiedEvents = new Set();
 
+    // Service Workerの登録（Android通知の安定化）
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').then(() => {
+        console.log('Service Worker 登録完了');
+      });
+    }
+
+    // 通知許可の確認
     if (Notification.permission === 'granted') {
       document.getElementById('notify-btn').style.display = 'none';
     }
@@ -122,12 +157,13 @@ if ('serviceWorker' in navigator) {
       });
     });
 
+    // データ取得と表示
     async function fetchAndRender() {
       const API_URL = `https://opensheet.elk.sh/${SHEET_ID}/${SHEET_NAME}`;
 
       try {
         const response = await fetch(API_URL);
-        if (!response.ok) throw new Error('シートの読み込みに失敗しました');
+        if (!response.ok) throw new Error('シート読み込み失敗');
         const rawData = await response.json();
 
         const now = new Date();
@@ -135,14 +171,14 @@ if ('serviceWorker' in navigator) {
         const eventList = rawData.filter(item => item.start && item.end).map(item => {
           const s = new Date(item.start);
           const e = new Date(item.end);
-          // 日付が正しく読み取れない（Invalid Date）場合は除外
           if (isNaN(s.getTime()) || isNaN(e.getTime())) return null;
 
           return {
             name: item.name || "名称未設定",
             start: s,
             end: e,
-            bg: item.bg || ""
+            bg: item.bg || "",
+            url: item.url || "" // スプレッドシートの「url」列を読み込む
           };
         })
         .filter(ev => ev !== null && ev.end > now)
@@ -153,34 +189,10 @@ if ('serviceWorker' in navigator) {
 
       } catch (error) {
         console.error(error);
-        // エラー内容を少し詳しく表示するように変更
-        document.getElementById("app").innerHTML = `<div class="loading">取得エラー: ${error.message}<br>スプレッドシートの日付形式（2026/03/31 19:00:00）を確認してください。</div>`;
+        document.getElementById("app").innerHTML = `<div class="loading">取得エラー: ${error.message}</div>`;
       }
     }
 
-function checkNotifications(eventList) {
-  if (Notification.permission !== "granted") return;
-
-  const now = new Date();
-  eventList.forEach(ev => {
-    const diff = ev.start.getTime() - now.getTime();
-    
-    // 開始5分前から開始1分後の間
-    if (diff < 300000 && diff > -60000 && !lastNotifiedEvents.has(ev.name)) {
-      
-      // 【最強の書き方】Service Worker経由で通知を出す
-      navigator.serviceWorker.ready.then(registration => {
-        registration.showNotification("原神イベント開始！", {
-          body: `${ev.name} が始まります！`,
-          tag: ev.name, // 同じ通知が重ならないようにする
-          renotify: true
-        });
-      });
-
-      lastNotifiedEvents.add(ev.name);
-    }
-  });
-}
     function renderApp(eventList) {
       const now = new Date();
       let html = "";
@@ -200,11 +212,16 @@ function checkNotifications(eventList) {
           timeText = calculateTime(diffToStart);
         } else {
           statusClass = (diffToEnd < 24 * 60 * 60 * 1000) ? "status-ending" : "status-active";
-          statusLabel = "進行中（終了まで）";
+          statusLabel = "進行中";
           timeText = calculateTime(Math.max(0, diffToEnd));
         }
 
+        // URLがある場合はリンクに、ない場合はそのまま表示
+        const openTag = ev.url ? `<a href="${ev.url}" target="_blank" rel="noopener noreferrer" class="event-card-link">` : '';
+        const closeTag = ev.url ? `</a>` : '';
+
         html += `
+          ${openTag}
           <div class="event-card" style="background-image: url('${ev.bg}')">
             <div class="event-info">
               <span class="status-badge ${statusClass}">${statusLabel}</span>
@@ -212,10 +229,37 @@ function checkNotifications(eventList) {
               <span class="event-time">残り：${timeText}</span>
             </div>
           </div>
+          ${closeTag}
         `;
       });
 
       document.getElementById("app").innerHTML = html;
+    }
+
+    // 通知を飛ばす処理（Android安定化版）
+    function checkNotifications(eventList) {
+      if (Notification.permission !== "granted") return;
+
+      const now = new Date();
+      eventList.forEach(ev => {
+        const diff = ev.start.getTime() - now.getTime();
+        
+        // 開始5分前から1分後の間、かつ未通知の場合
+        if (diff < 300000 && diff > -60000 && !lastNotifiedEvents.has(ev.name)) {
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.ready.then(registration => {
+              registration.showNotification("原神イベント開始！", {
+                body: `${ev.name} が始まりました！`,
+                tag: ev.name,
+                renotify: true
+              });
+            });
+          } else {
+            new Notification("原神イベント開始！", { body: `${ev.name} が始まります！` });
+          }
+          lastNotifiedEvents.add(ev.name);
+        }
+      });
     }
 
     function calculateTime(ms) {
@@ -227,8 +271,7 @@ function checkNotifications(eventList) {
     }
 
     fetchAndRender();
-    setInterval(fetchAndRender, 30000); // 30秒ごとに更新して精度アップ
+    setInterval(fetchAndRender, 30000); // 30秒ごとに更新
   </script>
-
 </body>
 </html>
