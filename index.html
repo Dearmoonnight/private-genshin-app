@@ -148,24 +148,24 @@
       }
     }
 
-    function checkNotifications(eventList) {
-      if (Notification.permission !== "granted") return;
+function checkNotifications(eventList) {
+  if (Notification.permission !== "granted") return;
 
-      const now = new Date();
-      eventList.forEach(ev => {
-        const diff = ev.start - now;
-        
-        // 開始5分前〜開始直後の間（通知済みでなければ実行）
-        if (diff > -60000 && diff < 300000 && !lastNotifiedEvents.has(ev.name)) {
-          new Notification("原神イベント開始！", {
-            body: `「${ev.name}」が始まります。`,
-            icon: "https://via.placeholder.com/128x128/a3b8c8/ffffff?text=!"
-          });
-          lastNotifiedEvents.add(ev.name);
-        }
+  const now = new Date();
+  eventList.forEach(ev => {
+    const diff = ev.start - now;
+    
+    // 開始5分前〜開始直後の間
+    if (diff > -60000 && diff < 300000 && !lastNotifiedEvents.has(ev.name)) {
+      // アイコンなどを一切使わず、文字だけで送る
+      new Notification("原神イベント開始！", {
+        body: ev.name + " が始まります！"
       });
+      lastNotifiedEvents.add(ev.name);
     }
-
+  });
+}
+    
     function renderApp(eventList) {
       const now = new Date();
       let html = "";
