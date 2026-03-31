@@ -93,27 +93,21 @@
     <div class="loading">スプレッドシートを読み込み中...</div>
   </div>
 
-  <script>
-    // --- あなたのスプレッドシート設定 ---
+<script>
     const SHEET_ID = '1KXIFT2144f_9lihSxHEO_hzNiMEmgKyrNaM24WwBMyQ'; 
     const SHEET_NAME = 'イベント一覧'; 
-    // ----------------------------------
 
     let lastNotifiedEvents = new Set();
 
-    // 【修正ポイント】ページ読み込み時に通知許可状態をチェック
     if (Notification.permission === 'granted') {
       document.getElementById('notify-btn').style.display = 'none';
     }
 
-    // ボタンクリック時の処理
     document.getElementById('notify-btn').addEventListener('click', () => {
       Notification.requestPermission().then(permission => {
         if (permission === 'granted') {
           alert('通知をオンにしました！');
           document.getElementById('notify-btn').style.display = 'none';
-        } else {
-          alert('通知が拒否されました。ブラウザの設定から許可してください。');
         }
       });
     });
@@ -123,20 +117,25 @@
 
       try {
         const response = await fetch(API_URL);
-        if (!response.ok) throw new Error('通信エラー');
+        if (!response.ok) throw new Error('シートの読み込みに失敗しました');
         const rawData = await response.json();
 
         const now = new Date();
 
-        const eventList = rawData.map(item => ({
-          name: item.name || "名称未設定",
-          start: new Date(item.start),
-          end: new Date(item.end),
-          bg: item.bg || "https://via.placeholder.com/300x200/a3b8c8/ffffff?text=Genshin"
-        }))
-        // 終了時間が現在より後のものだけ表示
-        .filter(ev => ev.end > now)
-        // 終了が近い順に並び替え
+        const eventList = rawData.filter(item => item.start && item.end).map(item => {
+          const s = new Date(item.start);
+          const e = new Date(item.end);
+          // 日付が正しく読み取れない（Invalid Date）場合は除外
+          if (isNaN(s.getTime()) || isNaN(e.getTime())) return null;
+
+          return {
+            name: item.name || "名称未設定",
+            start: s,
+            end: e,
+            bg: item.bg || ""
+          };
+        })
+        .filter(ev => ev !== null && ev.end > now)
         .sort((a, b) => a.end - b.end);
 
         renderApp(eventList);
@@ -144,28 +143,35 @@
 
       } catch (error) {
         console.error(error);
-        document.getElementById("app").innerHTML = `<div class="loading">データの取得に失敗しました。<br>シートの「共有」がリンクを知る全員になっているか確認してください。</div>`;
+        // エラー内容を少し詳しく表示するように変更
+        document.getElementById("app").innerHTML = `<div class="loading">取得エラー: ${error.message}<br>スプレッドシートの日付形式（2026/03/31 19:00:00）を確認してください。</div>`;
       }
     }
 
-function checkNotifications(eventList) {
-  if (Notification.permission !== "granted") return;
+    function checkNotifications(eventList) {
+      if (Notification.permission !== "granted") return;
 
-  const now = new Date();
-  eventList.forEach(ev => {
-    const diff = ev.start - now;
-    
-    // 開始5分前〜開始直後の間
-    if (diff > -60000 && diff < 300000 && !lastNotifiedEvents.has(ev.name)) {
-      // アイコンなどを一切使わず、文字だけで送る
-      new Notification("原神イベント開始！", {
-        body: ev.name + " が始まります！"
+      const now = new Date();
+      eventList.forEach(ev => {
+        const diff = ev.start.getTime() - now.getTime();
+        
+        // 【重要】開始5分前(300000ms)から開始1分後(-60000ms)の間
+        if (diff < 300000 && diff > -60000) {
+          if (!lastNotifiedEvents.has(ev.name)) {
+            try {
+              new Notification("原神イベント開始！", {
+                body: `${ev.name} が始まりました！`,
+                requireInteraction: true // 通知を勝手に消さない設定
+              });
+              lastNotifiedEvents.add(ev.name);
+            } catch (e) {
+              console.error("通知の送信に失敗:", e);
+            }
+          }
+        }
       });
-      lastNotifiedEvents.add(ev.name);
     }
-  });
-}
-    
+
     function renderApp(eventList) {
       const now = new Date();
       let html = "";
@@ -176,18 +182,17 @@ function checkNotifications(eventList) {
 
       eventList.forEach(ev => {
         let statusClass, statusLabel, timeText;
-        const diffToStart = ev.start - now;
-        const diffToEnd = ev.end - now;
+        const diffToStart = ev.start.getTime() - now.getTime();
+        const diffToEnd = ev.end.getTime() - now.getTime();
 
         if (diffToStart > 0) {
           statusClass = "status-upcoming";
           statusLabel = "開始まで";
           timeText = calculateTime(diffToStart);
         } else {
-          // 終了まで24時間を切ったら赤っぽくする
           statusClass = (diffToEnd < 24 * 60 * 60 * 1000) ? "status-ending" : "status-active";
-          statusLabel = "終了まで";
-          timeText = calculateTime(diffToEnd);
+          statusLabel = "進行中（終了まで）";
+          timeText = calculateTime(Math.max(0, diffToEnd));
         }
 
         html += `
@@ -205,6 +210,7 @@ function checkNotifications(eventList) {
     }
 
     function calculateTime(ms) {
+      if (ms <= 0) return "間もなく終了";
       const days = Math.floor(ms / (1000 * 60 * 60 * 24));
       const hours = Math.floor((ms % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
       const mins = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
@@ -212,7 +218,8 @@ function checkNotifications(eventList) {
     }
 
     fetchAndRender();
-    setInterval(fetchAndRender, 60000); // 1分ごとに更新
+    setInterval(fetchAndRender, 30000); // 30秒ごとに更新して精度アップ
   </script>
+
 </body>
 </html>
