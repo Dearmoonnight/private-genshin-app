@@ -6,7 +6,7 @@
   <title>原神スケジュール</title>
   <link rel="manifest" href="manifest.json">
   <style>
-    /* 目に優しいデザイン（くすみカラー） */
+    /* 【デザイン】目に優しいくすみカラー設定 */
     body {
       background-color: #f4f1ea;
       color: #5d5c58;
@@ -14,6 +14,7 @@
       padding: 20px;
       margin: 0;
     }
+
     h1 {
       font-size: 1.4rem;
       margin-bottom: 15px;
@@ -21,6 +22,8 @@
       padding-left: 15px;
       color: #4a4945;
     }
+
+    /* 通知ボタン：許可済みならJavaScriptで非表示にします */
     #notify-btn {
       display: block;
       width: 100%;
@@ -31,8 +34,10 @@
       background-color: #fff;
       color: #5d5c58;
       font-weight: bold;
+      cursor: pointer;
       box-shadow: 0 2px 5px rgba(0,0,0,0.05);
     }
+
     .event-card {
       position: relative;
       background-color: #ffffff;
@@ -49,16 +54,19 @@
       background-position: right center;
       background-size: contain; 
     }
+
     .event-card::before {
       content: '';
       position: absolute;
       top: 0; left: 0; width: 100%; height: 100%;
-      background: linear-gradient(to right, rgba(255,255,255,1) 0%, rgba(255,255,255,1) 35%, rgba(255,255,255,0.7) 65%, rgba(255,255,255,0) 98% );
+      background: linear-gradient(to right, rgba(255,255,255,1) 0%, rgba(255,255,255,1) 35%, rgba(255,255,255,0.7) 65%, rgba(255,255,255,0) 98%);
       z-index: 1;
     }
+
     .event-info { position: relative; z-index: 2; max-width: 65%; }
     .event-title { font-weight: bold; font-size: 1.1rem; margin-bottom: 8px; color: #333; display: block; }
     .event-time { font-size: 0.85rem; color: #777; font-variant-numeric: tabular-nums; }
+
     .status-badge {
       display: inline-block;
       padding: 2px 10px;
@@ -71,40 +79,53 @@
     .status-upcoming { background-color: #b2c9ab; }
     .status-active { background-color: #a3b8c8; }
     .status-ending { background-color: #d9b5b2; }
+    
     .loading { text-align: center; padding: 50px; color: #888; font-size: 0.9rem; }
   </style>
 </head>
 <body>
 
   <h1>原神スケジュール</h1>
+  
   <button id="notify-btn">🔔 通知をオンにする</button>
-  <div id="app"><div class="loading">スプレッドシートを読み込み中...</div></div>
+
+  <div id="app">
+    <div class="loading">スプレッドシートを読み込み中...</div>
+  </div>
 
   <script>
-    // --- あなたのスプレッドシート専用設定 ---
+    // --- あなたのスプレッドシート設定 ---
     const SHEET_ID = '1KXIFT2144f_9lihSxHEO_hzNiMEmgKyrNaM24WwBMyQ'; 
     const SHEET_NAME = 'イベント一覧'; 
-    // --------------------------------------
+    // ----------------------------------
 
     let lastNotifiedEvents = new Set();
 
+    // 【修正ポイント】ページ読み込み時に通知許可状態をチェック
+    if (Notification.permission === 'granted') {
+      document.getElementById('notify-btn').style.display = 'none';
+    }
+
+    // ボタンクリック時の処理
     document.getElementById('notify-btn').addEventListener('click', () => {
       Notification.requestPermission().then(permission => {
         if (permission === 'granted') {
           alert('通知をオンにしました！');
           document.getElementById('notify-btn').style.display = 'none';
+        } else {
+          alert('通知が拒否されました。ブラウザの設定から許可してください。');
         }
       });
     });
 
     async function fetchAndRender() {
-      // 外部サービスを使ってスプレッドシートを読み込み
       const API_URL = `https://opensheet.elk.sh/${SHEET_ID}/${SHEET_NAME}`;
 
       try {
         const response = await fetch(API_URL);
         if (!response.ok) throw new Error('通信エラー');
         const rawData = await response.json();
+
         const now = new Date();
 
         const eventList = rawData.map(item => ({
@@ -113,7 +134,9 @@
           end: new Date(item.end),
           bg: item.bg || "https://via.placeholder.com/300x200/a3b8c8/ffffff?text=Genshin"
         }))
+        // 終了時間が現在より後のものだけ表示
         .filter(ev => ev.end > now)
+        // 終了が近い順に並び替え
         .sort((a, b) => a.end - b.end);
 
         renderApp(eventList);
@@ -121,17 +144,23 @@
 
       } catch (error) {
         console.error(error);
-        document.getElementById("app").innerHTML = `<div class="loading">データの取得に失敗しました。<br>共有設定が「リンクを知っている全員」か確認してください。</div>`;
+        document.getElementById("app").innerHTML = `<div class="loading">データの取得に失敗しました。<br>シートの「共有」がリンクを知る全員になっているか確認してください。</div>`;
       }
     }
 
     function checkNotifications(eventList) {
       if (Notification.permission !== "granted") return;
+
       const now = new Date();
       eventList.forEach(ev => {
         const diff = ev.start - now;
+        
+        // 開始5分前〜開始直後の間（通知済みでなければ実行）
         if (diff > -60000 && diff < 300000 && !lastNotifiedEvents.has(ev.name)) {
-          new Notification("イベント開始！", { body: `「${ev.name}」が始まります。` });
+          new Notification("原神イベント開始！", {
+            body: `「${ev.name}」が始まります。`,
+            icon: "https://via.placeholder.com/128x128/a3b8c8/ffffff?text=!"
+          });
           lastNotifiedEvents.add(ev.name);
         }
       });
@@ -140,9 +169,11 @@
     function renderApp(eventList) {
       const now = new Date();
       let html = "";
+
       if (eventList.length === 0) {
         html = '<div class="loading">現在予定されているイベントはありません。</div>';
       }
+
       eventList.forEach(ev => {
         let statusClass, statusLabel, timeText;
         const diffToStart = ev.start - now;
@@ -153,6 +184,7 @@
           statusLabel = "開始まで";
           timeText = calculateTime(diffToStart);
         } else {
+          // 終了まで24時間を切ったら赤っぽくする
           statusClass = (diffToEnd < 24 * 60 * 60 * 1000) ? "status-ending" : "status-active";
           statusLabel = "終了まで";
           timeText = calculateTime(diffToEnd);
@@ -168,6 +200,7 @@
           </div>
         `;
       });
+
       document.getElementById("app").innerHTML = html;
     }
 
@@ -179,7 +212,7 @@
     }
 
     fetchAndRender();
-    setInterval(fetchAndRender, 60000);
+    setInterval(fetchAndRender, 60000); // 1分ごとに更新
   </script>
 </body>
 </html>
