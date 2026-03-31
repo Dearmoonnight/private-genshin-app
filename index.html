@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>原神スケジュール しらせ</title>
   <link rel="manifest" href="manifest.json?v=2">
-  <link rel="icon" href="icon_v2.png" type="image/png">
-  <link rel="apple-touch-icon" href="icon_v2.png">
+  <link rel="icon" href="icon.png" type="image/png">
+  <link rel="apple-touch-icon" href="icon.png">
   <style>
     :root {
       --bg-color: #f4f1ea;      /* 目に優しい和紙のようなベージュ */
@@ -40,46 +40,65 @@
       max-width: 500px;
     }
 
-    /* カードをタップ可能にするための設定 */
     .event-card-link {
       text-decoration: none;
       color: inherit;
       display: block;
       margin-bottom: 15px;
       -webkit-tap-highlight-color: transparent;
+      transition: transform 0.2s;
+    }
+
+    .event-card-link:active {
+      transform: scale(0.97);
     }
 
     .event-card {
-      background-size: cover;
-      background-position: center;
+      background-color: var(--card-bg);
       border-radius: 16px;
       overflow: hidden;
       box-shadow: 0 4px 12px rgba(0,0,0,0.05);
       position: relative;
-      height: 120px;
-      transition: transform 0.2s;
-    }
-
-    .event-card-link:active .event-card {
-      transform: scale(0.97); /* タップした時の凹み演出 */
+      height: 100px; /* カードの高さを維持 */
+      display: flex;
+      align-items: center;
     }
 
     .event-info {
-      background: rgba(255, 255, 255, 0.85); /* 目に優しい半透明白 */
-      backdrop-filter: blur(4px);
-      position: absolute;
-      bottom: 0;
-      width: 100%;
-      padding: 10px 15px;
-      box-sizing: border-box;
+      flex: 1;
+      padding: 10px 20px;
       display: flex;
       flex-direction: column;
+      justify-content: center;
+      z-index: 2; /* テキストを画像より手前に表示 */
+      max-width: 65%; /* 文字が画像に被りすぎないように制限 */
     }
+
+    /* --- 【重要】ここを修正して画像をフェードアウトさせる --- */
+    .event-image {
+      width: 150px; /* イラストの幅を少し広く */
+      height: 100%;
+      background-size: contain; /* 画像全体を表示 */
+      background-position: center right; /* 右端に配置 */
+      background-repeat: no-repeat;
+      position: absolute;
+      right: 0;
+      top: 0;
+      opacity: 0.9;
+      
+      /* 【新設】左側をフェードアウトさせるグラデーションマスク */
+      -webkit-mask-image: linear-gradient(to right, transparent, black 40%);
+      mask-image: linear-gradient(to right, transparent, black 40%);
+    }
+    /* --- 【重要】ここまで修正 --- */
 
     .event-title {
       font-weight: bold;
       font-size: 1.1rem;
       margin-bottom: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .event-time {
@@ -130,20 +149,18 @@
   </div>
 
   <script>
-    // --- 基本設定 ---
+    // --- Script部分は変更なし ---
     const SHEET_ID = '1KXIFT2144f_9lihSxHEO_hzNiMEmgKyrNaM24WwBMyQ'; 
     const SHEET_NAME = 'イベント一覧'; 
 
     let lastNotifiedEvents = new Set();
 
-    // Service Workerの登録（Android通知の安定化）
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('sw.js').then(() => {
         console.log('Service Worker 登録完了');
       });
     }
 
-    // 通知許可の確認
     if (Notification.permission === 'granted') {
       document.getElementById('notify-btn').style.display = 'none';
     }
@@ -157,7 +174,6 @@
       });
     });
 
-    // データ取得と表示
     async function fetchAndRender() {
       const API_URL = `https://opensheet.elk.sh/${SHEET_ID}/${SHEET_NAME}`;
 
@@ -177,8 +193,8 @@
             name: item.name || "名称未設定",
             start: s,
             end: e,
-            bg: item.bg || "",
-            url: item.url || "" // スプレッドシートの「url」列を読み込む
+            bg: item.bg || "", // ここに立ち絵のURLを入れる
+            url: item.url || "" 
           };
         })
         .filter(ev => ev !== null && ev.end > now)
@@ -216,18 +232,18 @@
           timeText = calculateTime(Math.max(0, diffToEnd));
         }
 
-        // URLがある場合はリンクに、ない場合はそのまま表示
-        const openTag = ev.url ? `<a href="${ev.url}" target="_blank" rel="noopener noreferrer" class="event-card-link">` : '';
-        const closeTag = ev.url ? `</a>` : '';
+        const openTag = ev.url ? `<a href="${ev.url}" target="_blank" rel="noopener noreferrer" class="event-card-link">` : '<div class="event-card-link">';
+        const closeTag = ev.url ? `</a>` : '</div>';
 
         html += `
           ${openTag}
-          <div class="event-card" style="background-image: url('${ev.bg}')">
+          <div class="event-card">
             <div class="event-info">
               <span class="status-badge ${statusClass}">${statusLabel}</span>
               <span class="event-title">${ev.name}</span>
               <span class="event-time">残り：${timeText}</span>
             </div>
+            <div class="event-image" style="background-image: url('${ev.bg}')"></div>
           </div>
           ${closeTag}
         `;
@@ -236,7 +252,6 @@
       document.getElementById("app").innerHTML = html;
     }
 
-    // 通知を飛ばす処理（Android安定化版）
     function checkNotifications(eventList) {
       if (Notification.permission !== "granted") return;
 
@@ -244,7 +259,6 @@
       eventList.forEach(ev => {
         const diff = ev.start.getTime() - now.getTime();
         
-        // 開始5分前から1分後の間、かつ未通知の場合
         if (diff < 300000 && diff > -60000 && !lastNotifiedEvents.has(ev.name)) {
           if ('serviceWorker' in navigator) {
             navigator.serviceWorker.ready.then(registration => {
@@ -271,7 +285,7 @@
     }
 
     fetchAndRender();
-    setInterval(fetchAndRender, 30000); // 30秒ごとに更新
+    setInterval(fetchAndRender, 30000); 
   </script>
 </body>
 </html>
