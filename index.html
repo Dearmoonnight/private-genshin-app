@@ -94,6 +94,10 @@
   </div>
 
 <script>
+  if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js');
+}
+
     const SHEET_ID = '1KXIFT2144f_9lihSxHEO_hzNiMEmgKyrNaM24WwBMyQ'; 
     const SHEET_NAME = 'イベント一覧'; 
 
