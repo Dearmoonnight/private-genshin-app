@@ -7,9 +7,13 @@
   "theme_color": "#a3b8c8",
   "icons": [
     {
-      "src": "https://via.placeholder.com/192x192/a3b8c8/ffffff?text=Genshin",
+      "src": "icon.png",
       "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
       "type": "image/png"
     }
   ]
-}
