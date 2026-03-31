@@ -94,10 +94,14 @@
   </div>
 
 <script>
-  if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js');
+// --- 追加：Service Workerを登録するおまじない ---
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').then(() => {
+    console.log('Service Worker 登録完了');
+  });
 }
-
+// ----------------------------------------------
+  
     const SHEET_ID = '1KXIFT2144f_9lihSxHEO_hzNiMEmgKyrNaM24WwBMyQ'; 
     const SHEET_NAME = 'イベント一覧'; 
 
