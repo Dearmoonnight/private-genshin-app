@@ -156,30 +156,29 @@ if ('serviceWorker' in navigator) {
       }
     }
 
-    function checkNotifications(eventList) {
-      if (Notification.permission !== "granted") return;
+function checkNotifications(eventList) {
+  if (Notification.permission !== "granted") return;
 
-      const now = new Date();
-      eventList.forEach(ev => {
-        const diff = ev.start.getTime() - now.getTime();
-        
-        // 【重要】開始5分前(300000ms)から開始1分後(-60000ms)の間
-        if (diff < 300000 && diff > -60000) {
-          if (!lastNotifiedEvents.has(ev.name)) {
-            try {
-              new Notification("原神イベント開始！", {
-                body: `${ev.name} が始まりました！`,
-                requireInteraction: true // 通知を勝手に消さない設定
-              });
-              lastNotifiedEvents.add(ev.name);
-            } catch (e) {
-              console.error("通知の送信に失敗:", e);
-            }
-          }
-        }
+  const now = new Date();
+  eventList.forEach(ev => {
+    const diff = ev.start.getTime() - now.getTime();
+    
+    // 開始5分前から開始1分後の間
+    if (diff < 300000 && diff > -60000 && !lastNotifiedEvents.has(ev.name)) {
+      
+      // 【最強の書き方】Service Worker経由で通知を出す
+      navigator.serviceWorker.ready.then(registration => {
+        registration.showNotification("原神イベント開始！", {
+          body: `${ev.name} が始まります！`,
+          tag: ev.name, // 同じ通知が重ならないようにする
+          renotify: true
+        });
       });
-    }
 
+      lastNotifiedEvents.add(ev.name);
+    }
+  });
+}
     function renderApp(eventList) {
       const now = new Date();
       let html = "";
