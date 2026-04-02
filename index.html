@@ -96,6 +96,18 @@
       mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,0.5) 10%, black 30%);
     }
 
+
+    .event-title {
+      font-weight: bold;
+      font-size: 1.05rem;
+      margin-bottom: 4px;
+      display: -webkit-box;
+      -webkit-line-clamp: 2; /* 2行まで表示 */
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      line-height: 1.3;
+    }
+
     .event-time {
       font-size: 0.85rem;
       opacity: 0.8;
@@ -190,92 +202,4 @@
             bg: item.bg || "",
             url: item.url || "" 
           };
-        })
-        .filter(ev => ev !== null && ev.end > now)
-        .sort((a, b) => a.end - b.end);
-
-        renderApp(eventList);
-        checkNotifications(eventList);
-
-      } catch (error) {
-        console.error(error);
-        document.getElementById("app").innerHTML = `<div class="loading">取得エラー: ${error.message}</div>`;
-      }
-    }
-
-    function renderApp(eventList) {
-      const now = new Date();
-      let html = "";
-
-      if (eventList.length === 0) {
-        html = '<div class="loading">現在予定されているイベントはありません。</div>';
-      }
-
-      eventList.forEach(ev => {
-        let statusClass, statusLabel, timeText;
-        const diffToStart = ev.start.getTime() - now.getTime();
-        const diffToEnd = ev.end.getTime() - now.getTime();
-
-        if (diffToStart > 0) {
-          statusClass = "status-upcoming";
-          statusLabel = "開始まで";
-          timeText = calculateTime(diffToStart);
-        } else {
-          statusClass = (diffToEnd < 24 * 60 * 60 * 1000) ? "status-ending" : "status-active";
-          statusLabel = "進行中";
-          timeText = calculateTime(Math.max(0, diffToEnd));
-        }
-
-        const openTag = ev.url ? `<a href="${ev.url}" target="_blank" rel="noopener noreferrer" class="event-card-link">` : '<div class="event-card-link">';
-        const closeTag = ev.url ? `</a>` : '</div>';
-
-        html += `
-          ${openTag}
-          <div class="event-card">
-            <div class="event-info">
-              <span class="status-badge ${statusClass}">${statusLabel}</span>
-              <span class="event-title">${ev.name}</span>
-              <span class="event-time">残り：${timeText}</span>
-            </div>
-            <div class="event-image" style="background-image: url('${ev.bg}')"></div>
-          </div>
-          ${closeTag}
-        `;
-      });
-
-      document.getElementById("app").innerHTML = html;
-    }
-
-    function checkNotifications(eventList) {
-      if (Notification.permission !== "granted") return;
-      const now = new Date();
-      eventList.forEach(ev => {
-        const diff = ev.start.getTime() - now.getTime();
-        if (diff < 300000 && diff > -60000 && !lastNotifiedEvents.has(ev.name)) {
-          if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.ready.then(registration => {
-              registration.showNotification("原神イベント開始！", {
-                body: `${ev.name} が始まりました！`,
-                tag: ev.name,
-                renotify: true
-              });
-            });
-          }
-          lastNotifiedEvents.add(ev.name);
-        }
-      });
-    }
-
-    function calculateTime(ms) {
-      if (ms <= 0) return "間もなく終了";
-      const days = Math.floor(ms / (1000 * 60 * 60 * 24));
-      const hours = Math.floor((ms % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-      const mins = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
-      return `${days}日 ${hours}時間 ${mins}分`;
-    }
-
-    fetchAndRender();
-    setInterval(fetchAndRender, 30000); 
-  </script>
-</body>
-</html>
+  
