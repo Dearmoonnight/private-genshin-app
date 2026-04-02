@@ -75,21 +75,24 @@
       max-width: 60%;
     }
 
-    /* --- 【修正】画像を縦いっぱいにし、左をフェードさせる --- */
+    /* --- 【改善】画像を縦いっぱいにし、左をフェードさせる --- */
     .event-image {
-      width: 180px; /* 画像の表示幅 */
-      height: 100%; /* カードの縦幅いっぱいに広げる */
-      background-size: cover; /* 縦を基準に隙間なく埋める */
-      background-position: center; /* 中央を基準に表示 */
+      /* 【変更】画像自体の幅を少し広くして、左側を確保 */
+      width: 200px; 
+      
+      height: 100%;
+      background-size: cover;
+      background-position: center;
       background-repeat: no-repeat;
       position: absolute;
       right: 0;
       top: 0;
       opacity: 0.95;
       
-      /* 左側の切れ目をなめらかに消す */
-      -webkit-mask-image: linear-gradient(to right, transparent, black 35%);
-      mask-image: linear-gradient(to right, transparent, black 35%);
+      /* --- 【変更】ここを極限まで左に寄せるグラデーションに修正 --- */
+      /* transparent（透明）が始まる位置を左へずらし、切れ目をよりなめらかに */
+      -webkit-mask-image: linear-gradient(to right, transparent 5%, rgba(0,0,0,0.5) 15%, black 25%);
+      mask-image: linear-gradient(to right, transparent 5%, rgba(0,0,0,0.5) 15%, black 25%);
     }
 
     .event-title {
