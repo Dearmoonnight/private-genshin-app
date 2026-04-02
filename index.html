@@ -15,6 +15,13 @@
       --accent-blue: #a3b8c8;
       --accent-active: #8fb196;
       --accent-warning: #d9a6a6;
+      
+      /* カテゴリ別カラー（左端の線用） */
+      --color-version: #4a90e2;    /* バージョン: 濃い青 */
+      --color-kigan: #f5a623;      /* 祈願: オレンジ/金 */
+      --color-kojo: #9b59b6;       /* 恒常: 紫 */
+      --color-limited: #e74c3c;    /* 期間限定: 赤 */
+      --color-starry: #1abc9c;     /* 星々の幻境: エメラルド */
     }
 
     body {
@@ -28,7 +35,6 @@
       align-items: center;
     }
 
-    /* タイトルを【原神スケジュール表】に変更 */
     h1 {
       font-size: 1.5rem;
       margin-bottom: 20px;
@@ -50,9 +56,7 @@
       transition: transform 0.2s;
     }
 
-    .event-card-link:active {
-      transform: scale(0.97);
-    }
+    .event-card-link:active { transform: scale(0.97); }
 
     .event-card {
       background-color: var(--card-bg);
@@ -60,14 +64,23 @@
       overflow: hidden;
       box-shadow: 0 4px 12px rgba(0,0,0,0.05);
       position: relative;
-      height: 110px; /* 少し高さを調整 */
+      height: 110px;
       display: flex;
       align-items: center;
+      /* 左端の色のためのボーダー設定 */
+      border-left: 8px solid transparent;
     }
+
+    /* カテゴリ別の左端色付け */
+    .cat-バージョン { border-left-color: var(--color-version); }
+    .cat-前半祈願, .cat-後半祈願 { border-left-color: var(--color-kigan); }
+    .cat-恒常イベント, .cat-恒常時限イベント { border-left-color: var(--color-kojo); }
+    .cat-期間限定イベント { border-left-color: var(--color-limited); }
+    .cat-星々の幻境 { border-left-color: var(--color-starry); }
 
     .event-info {
       flex: 1;
-      padding: 10px 20px;
+      padding: 10px 15px;
       display: flex;
       flex-direction: column;
       justify-content: center;
@@ -76,50 +89,39 @@
     }
 
     .event-image {
-      /* 【変更】画像自体の幅をしっかり確保 */
-      width: 220px; 
+      width: 220px;
       height: 100%;
       background-size: cover;
       background-position: center;
       background-repeat: no-repeat;
       position: absolute;
-      
-      /* --- 【重要】右端をカードのさらに外側にずらす --- */
-      /* マイナスの値を指定することで、右側をわざとはみ出させます */
-      right: -20px; 
+      right: -20px;
       top: 0;
       opacity: 0.95;
-      
-      /* フェードアウトの開始位置を調整 */
-      /* 画像が右にズレた分、透明度をより左側から効かせます */
       -webkit-mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,0.5) 10%, black 30%);
       mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,0.5) 10%, black 30%);
     }
 
-
     .event-title {
       font-weight: bold;
-      font-size: 1.05rem;
+      font-size: 1rem;
       margin-bottom: 4px;
       display: -webkit-box;
-      -webkit-line-clamp: 2; /* 2行まで表示 */
+      -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
       overflow: hidden;
       line-height: 1.3;
     }
 
-    .event-time {
-      font-size: 0.85rem;
-      opacity: 0.8;
-    }
+    .event-time { font-size: 0.8rem; opacity: 0.8; }
 
     .status-badge {
-      font-size: 0.7rem;
+      font-size: 0.65rem;
       padding: 2px 8px;
       border-radius: 20px;
       color: white;
       width: fit-content;
-      margin-bottom: 5px;
+      margin-bottom: 4px;
     }
 
     .status-active { background-color: var(--accent-active); }
@@ -127,167 +129,154 @@
     .status-ending { background-color: var(--accent-warning); }
 
     #notify-btn {
-      background: var(--accent-blue);
-      color: white;
-      border: none;
-      padding: 12px 24px;
-      border-radius: 30px;
-      font-size: 1rem;
-      cursor: pointer;
-      margin-bottom: 20px;
-      box-shadow: 0 4px 10px rgba(163, 184, 200, 0.4);
-    }
-
-    .loading {
-      text-align: center;
-      margin-top: 50px;
-      color: var(--accent-blue);
+      background: var(--accent-blue); color: white; border: none; padding: 12px 24px;
+      border-radius: 30px; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(163, 184, 200, 0.4);
     }
   </style>
 </head>
 <body>
 
   <h1>原神スケジュール表</h1>
-
   <button id="notify-btn">通知を有効にする</button>
-
-  <div id="app">
-    <div class="loading">読み込み中...</div>
-  </div>
+  <div id="app"></div>
 
   <script>
     const SHEET_ID = '1KXIFT2144f_9lihSxHEO_hzNiMEmgKyrNaM24WwBMyQ'; 
     const SHEET_NAME = 'イベント一覧'; 
 
-    let lastNotifiedEvents = new Set();
+    // カテゴリの表示順序定義
+    const CATEGORY_ORDER = [
+      "バージョン", "前半祈願", "後半祈願", "恒常イベント", "恒常時限イベント", "期間限定イベント", "星々の幻境"
+    ];
+
+    let notifiedKeys = new Set();
 
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js').then(() => {
-        console.log('Service Worker 登録完了');
-      });
+      navigator.serviceWorker.register('sw.js');
     }
-
-    if (Notification.permission === 'granted') {
-      document.getElementById('notify-btn').style.display = 'none';
-    }
-
-    document.getElementById('notify-btn').addEventListener('click', () => {
-      Notification.requestPermission().then(permission => {
-        if (permission === 'granted') {
-          alert('通知をオンにしました！');
-          document.getElementById('notify-btn').style.display = 'none';
-        }
-      });
-    });
 
     async function fetchAndRender() {
       const API_URL = `https://opensheet.elk.sh/${SHEET_ID}/${SHEET_NAME}`;
-
       try {
         const response = await fetch(API_URL);
-        if (!response.ok) throw new Error('シート読み込み失敗');
         const rawData = await response.json();
-
         const now = new Date();
 
-        const eventList = rawData.filter(item => item.start && item.end).map(item => {
+        let eventList = rawData.map(item => {
           const s = new Date(item.start);
           const e = new Date(item.end);
-          if (isNaN(s.getTime()) || isNaN(e.getTime())) return null;
-
           return {
-            name: item.name || "名称未設定",
+            name: item.name || "未設定",
             start: s,
             end: e,
             bg: item.bg || "",
-            url: item.url || "" 
+            url: item.url || "",
+            category: item.category || "その他"
           };
         })
-        .filter(ev => ev !== null && ev.end > now)
-        .sort((a, b) => a.end - b.end);
+        .filter(ev => !isNaN(ev.end.getTime()) && ev.end > now);
+
+        // バージョン番号を抽出する関数（例: "Ver 5.2" -> 5.2）
+        const getVer = (name) => {
+          const match = name.match(/Ver\.?\s?(\d+\.\d+)/i) || name.match(/Luna\s?(\d+)/i);
+          return match ? parseFloat(match[1]) : 999;
+        };
+
+        // 並び替えロジック
+        eventList.sort((a, b) => {
+          const verA = getVer(a.name);
+          const verB = getVer(b.name);
+          
+          if (verA !== verB) return verA - verB; // バージョン昇順
+          
+          const catA = CATEGORY_ORDER.indexOf(a.category);
+          const catB = CATEGORY_ORDER.indexOf(b.category);
+          return catA - catB; // カテゴリ定義順
+        });
 
         renderApp(eventList);
-        checkNotifications(eventList);
-
-      } catch (error) {
-        console.error(error);
-        document.getElementById("app").innerHTML = `<div class="loading">取得エラー: ${error.message}</div>`;
-      }
+        checkAdvancedNotifications(eventList);
+      } catch (e) { console.error(e); }
     }
 
     function renderApp(eventList) {
       const now = new Date();
       let html = "";
-
-      if (eventList.length === 0) {
-        html = '<div class="loading">現在予定されているイベントはありません。</div>';
-      }
-
       eventList.forEach(ev => {
-        let statusClass, statusLabel, timeText;
-        const diffToStart = ev.start.getTime() - now.getTime();
-        const diffToEnd = ev.end.getTime() - now.getTime();
+        const diffToStart = ev.start - now;
+        const diffToEnd = ev.end - now;
+        let statusClass = "status-upcoming", statusLabel = "開始まで";
 
-        if (diffToStart > 0) {
-          statusClass = "status-upcoming";
-          statusLabel = "開始まで";
-          timeText = calculateTime(diffToStart);
-        } else {
+        if (diffToStart <= 0) {
           statusClass = (diffToEnd < 24 * 60 * 60 * 1000) ? "status-ending" : "status-active";
           statusLabel = "進行中";
-          timeText = calculateTime(Math.max(0, diffToEnd));
         }
 
-        const openTag = ev.url ? `<a href="${ev.url}" target="_blank" rel="noopener noreferrer" class="event-card-link">` : '<div class="event-card-link">';
+        const openTag = ev.url ? `<a href="${ev.url}" target="_blank" class="event-card-link">` : '<div class="event-card-link">';
         const closeTag = ev.url ? `</a>` : '</div>';
 
         html += `
           ${openTag}
-          <div class="event-card">
+          <div class="event-card cat-${ev.category}">
             <div class="event-info">
               <span class="status-badge ${statusClass}">${statusLabel}</span>
               <span class="event-title">${ev.name}</span>
-              <span class="event-time">残り：${timeText}</span>
+              <span class="event-time">残り：${calculateTime(Math.max(0, diffToStart > 0 ? diffToStart : diffToEnd))}</span>
             </div>
             <div class="event-image" style="background-image: url('${ev.bg}')"></div>
           </div>
           ${closeTag}
         `;
       });
-
-      document.getElementById("app").innerHTML = html;
+      document.getElementById("app").innerHTML = html || "予定はありません";
     }
 
-    function checkNotifications(eventList) {
+    function checkAdvancedNotifications(eventList) {
       if (Notification.permission !== "granted") return;
       const now = new Date();
+      const checkPoints = [
+        { time: 24 * 60 * 60 * 1000, label: "1日前" },
+        { time: 5 * 60 * 60 * 1000, label: "5時間前" },
+        { time: 15 * 60 * 1000, label: "15分前" }
+      ];
+
       eventList.forEach(ev => {
-        const diff = ev.start.getTime() - now.getTime();
-        if (diff < 300000 && diff > -60000 && !lastNotifiedEvents.has(ev.name)) {
-          if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.ready.then(registration => {
-              registration.showNotification("原神イベント開始！", {
-                body: `${ev.name} が始まりました！`,
-                tag: ev.name,
-                renotify: true
-              });
-            });
+        checkPoints.forEach(p => {
+          // 開始通知
+          const startDiff = ev.start - now;
+          const startKey = `${ev.name}-start-${p.label}`;
+          if (startDiff > 0 && startDiff <= p.time && startDiff > p.time - 60000 && !notifiedKeys.has(startKey)) {
+            sendPaimonNotify(`旅人、オイラだぞ！あと${p.label}後に${ev.name}が始まるぞ！楽しみだな〜！`, startKey);
           }
-          lastNotifiedEvents.add(ev.name);
-        }
+          // 終了通知
+          const endDiff = ev.end - now;
+          const endKey = `${ev.name}-end-${p.label}`;
+          if (endDiff > 0 && endDiff <= p.time && endDiff > p.time - 60000 && !notifiedKeys.has(endKey)) {
+            sendPaimonNotify(`旅人、オイラだぞ！あと${p.label}後に${ev.name}が終わるぞ！急いで確認しよう！`, endKey);
+          }
+        });
       });
     }
 
-    function calculateTime(ms) {
-      if (ms <= 0) return "間もなく終了";
-      const days = Math.floor(ms / (1000 * 60 * 60 * 24));
-      const hours = Math.floor((ms % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-      const mins = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
-      return `${days}日 ${hours}時間 ${mins}分`;
+    function sendPaimonNotify(msg, key) {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.ready.then(reg => {
+          reg.showNotification("原神スケジュール表", { body: msg, icon: "icon.png", tag: key });
+        });
+      }
+      notifiedKeys.add(key);
     }
 
+    function calculateTime(ms) {
+      const d = Math.floor(ms / 86400000);
+      const h = Math.floor((ms % 86400000) / 3600000);
+      const m = Math.floor((ms % 3600000) / 60000);
+      return d > 0 ? `${d}日 ${h}時間` : `${h}時間 ${m}分`;
+    }
+
+    document.getElementById('notify-btn').onclick = () => Notification.requestPermission();
     fetchAndRender();
-    setInterval(fetchAndRender, 30000); 
+    setInterval(fetchAndRender, 60000);
   </script>
 </body>
 </html>
