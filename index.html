@@ -256,33 +256,6 @@
       document.getElementById("app").innerHTML = html || "予定はありません";
     }
 
-    function checkAdvancedNotifications(eventList) {
-      if (Notification.permission !== "granted") return;
-      const now = new Date();
-      const checkPoints = [
-        { time: 24 * 60 * 60 * 1000, label: "1日前" },
-        { time: 5 * 60 * 60 * 1000, label: "5時間前" },
-        { time: 15 * 60 * 1000, label: "15分前" }
-      ];
-
-      eventList.forEach(ev => {
-        checkPoints.forEach(p => {
-          // 開始通知
-          const startDiff = ev.start - now;
-          const startKey = `${ev.name}-start-${p.label}`;
-          if (startDiff > 0 && startDiff <= p.time && startDiff > p.time - 60000 && !notifiedKeys.has(startKey)) {
-            sendPaimonNotify(`旅人、オイラだぞ！あと${p.label}後に${ev.name}が始まるぞ！楽しみだな〜！`, startKey);
-          }
-          // 終了通知
-          const endDiff = ev.end - now;
-          const endKey = `${ev.name}-end-${p.label}`;
-          if (endDiff > 0 && endDiff <= p.time && endDiff > p.time - 60000 && !notifiedKeys.has(endKey)) {
-            sendPaimonNotify(`旅人、オイラだぞ！あと${p.label}後に${ev.name}が終わるぞ！急いで確認しよう！`, endKey);
-          }
-        });
-      });
-    }
-
     function sendPaimonNotify(msg, key) {
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.ready.then(reg => {
